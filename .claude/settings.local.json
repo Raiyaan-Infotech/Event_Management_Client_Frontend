@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"d:/Jamal/Event_Management_Vendor_Frontend/src/app/\\(dashboard\\)/\")",
+      "Bash(find \"d:/Jamal/Event_Management_Vendor_Frontend/src/app/\\(dashboard\\)/activity-log\" -type f)",
+      "Bash(grep -r \"activityLog\\\\|activity_logs\" D:JamalAdminPanel-Backendsrcroutes*)",
+      "Bash(grep -r \"contentEditable\\\\|editorState\\\\|getContent\\\\|setContent\" d:/Jamal/Event_Management_Vendor_Frontend/src --include=*.tsx --include=*.ts)",
+      "Bash(find d:/Jamal/AdminPanel-Backend/src/models -name *[Aa]ctivity* -type f)",
+      "Bash(find d:/Jamal/AdminPanel-Backend/src/utils -name *.js -type f)",
+      "Bash(grep -r \"sort_by\\\\|sort_order\" d:/Jamal/AdminPanel-Backend/src --include=*.js)"
+    ]
+  }
+}
