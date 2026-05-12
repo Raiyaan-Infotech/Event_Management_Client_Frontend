@@ -130,7 +130,8 @@ export default function ProfileContent() {
     if (!passwordData.current_password) { toast.error("Current password is required"); return; }
     if (!passwordData.new_password)     { toast.error("New password is required"); return; }
     if (!passwordData.confirm_password) { toast.error("Confirm password is required"); return; }
-    if (passwordData.new_password.length < 6) { toast.error("New password must be at least 6 characters"); return; }
+    if (passwordData.new_password.trim().length < 6) { toast.error("New password must be at least 6 characters"); return; }
+    if (passwordData.current_password.trim() === passwordData.new_password.trim()) { toast.error("New password must be different from current password"); return; }
     if (passwordData.new_password !== passwordData.confirm_password) {
       toast.error("Confirm password does not match");
       return;
