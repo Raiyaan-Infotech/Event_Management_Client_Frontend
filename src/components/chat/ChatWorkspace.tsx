@@ -39,8 +39,9 @@ interface ChatWorkspaceProps {
 const cardClass = "bg-card rounded-[5px] border border-border shadow-sm dark:shadow-none";
 
 const socketUrl = () => {
+  if (process.env.NEXT_PUBLIC_SOCKET_URL) return process.env.NEXT_PUBLIC_SOCKET_URL;
   const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api/v1";
-  return api.replace(/\/api\/v1\/?$/, "");
+  return api.replace(/\/api(\/v\d+)?\/?$/, "").replace(/\/$/, "") || "http://localhost:5001";
 };
 
 const initials = (name?: string | null) =>
