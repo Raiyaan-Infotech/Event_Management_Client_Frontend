@@ -101,7 +101,7 @@ export function ChatWorkspace({
     const socket = io(socketUrl(), {
       withCredentials: true,
       auth: { portalType },
-      transports: ["websocket", "polling"],
+      transports: ["polling", "websocket"],
     });
     socketRef.current = socket;
 
