@@ -1,6 +1,6 @@
 import { ChatWorkspace } from "@/components/chat/ChatWorkspace";
 
-export default function SupportChatPage() {
+export default function ClientCommunicationChatPage() {
   return (
     <ChatWorkspace
       portalType="client"

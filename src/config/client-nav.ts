@@ -33,11 +33,11 @@ export const clientNavItems: PortalNavItem[] = [
   { label: 'Subscription', href: '/subscription', icon: CreditCard },
   { label: 'Payment', href: '/payment', icon: CreditCard },
   {
-    label: 'Support',
+    label: 'Communication',
     icon: MessageSquare,
     children: [
       { label: 'Mail', href: '/support/mail', icon: Mail },
-      { label: 'Chat', href: '/support/chat', icon: MessageCircle },
+      { label: 'Chat', href: '/communication/chat', icon: MessageCircle },
       { label: 'Notification', href: '/support/notification', icon: Bell },
     ],
   },
