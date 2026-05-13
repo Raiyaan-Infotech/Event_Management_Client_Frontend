@@ -1,4 +1,5 @@
 import {
+  Bell,
   CalendarDays,
   CreditCard,
   LayoutDashboard,
@@ -37,6 +38,7 @@ export const clientNavItems: PortalNavItem[] = [
     children: [
       { label: 'Mail', href: '/support/mail', icon: Mail },
       { label: 'Chat', href: '/support/chat', icon: MessageCircle },
+      { label: 'Notification', href: '/support/notification', icon: Bell },
     ],
   },
   { label: 'Mobile Theme', href: '/mobile-theme', icon: Smartphone },
