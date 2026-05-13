@@ -90,9 +90,9 @@ export const useSendChatMessage = () => {
   return useMutation({
     mutationFn: async (payload: { conversation_id: number; message: string }) =>
       (await apiClient.post('/chat/messages', payload)).data.data as ChatMessage,
-    onSuccess: (message) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: chatKeys.conversations });
-      qc.invalidateQueries({ queryKey: chatKeys.messages(message.conversation_id) });
+      // messages are added via socket chat:message event — no refetch needed
     },
   });
 };
