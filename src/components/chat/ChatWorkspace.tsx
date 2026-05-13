@@ -127,6 +127,12 @@ export function ChatWorkspace({
       socket.on("chat:message", (incoming: ChatMessage) => {
         qc.setQueryData<ChatMessage[]>(chatKeys.messages(incoming.conversation_id), (old = []) => {
           if (old.some((item) => item.id === incoming.id)) return old;
+          const idx = old.findIndex((m) => m.id < 0 && m.message === incoming.message && m.sender_type === incoming.sender_type);
+          if (idx !== -1) {
+            const next = [...old];
+            next[idx] = incoming;
+            return next;
+          }
           return [...old, incoming];
         });
         qc.invalidateQueries({ queryKey: chatKeys.conversations });
@@ -178,7 +184,16 @@ export function ChatWorkspace({
     const text = message.trim();
     if (!selectedId || !text) return;
     setMessage("");
-    await sendMessage.mutateAsync({ conversation_id: selectedId, message: text });
+    const tempId = -Date.now();
+    qc.setQueryData<ChatMessage[]>(chatKeys.messages(selectedId), (old = []) => [
+      ...old,
+      { id: tempId, conversation_id: selectedId, sender_type: portalType, sender_id: 0, message: text, message_type: "text" as const, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+    ]);
+    try {
+      await sendMessage.mutateAsync({ conversation_id: selectedId, message: text });
+    } catch {
+      qc.setQueryData<ChatMessage[]>(chatKeys.messages(selectedId), (old = []) => old.filter((m) => m.id !== tempId));
+    }
   };
 
   const formatTime = (value?: string | null) => {
