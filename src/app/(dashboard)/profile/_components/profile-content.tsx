@@ -82,6 +82,7 @@ export default function ProfileContent() {
   });
 
   const [passwordData, setPasswordData] = useState({ current_password: "", new_password: "", confirm_password: "" });
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -238,30 +239,38 @@ export default function ProfileContent() {
               icon={Lock} iconColorClass="text-violet-600" iconBgClass="bg-violet-50 dark:bg-violet-500/10">
               <div className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-                  <FormGroup label="Current Password" icon={Lock}>
+                  <FormGroup label="Current Password" icon={Lock} error={passwordErrors.current_password}>
                     <Input type={showCurrent ? "text" : "password"} value={passwordData.current_password}
-                      onChange={(e) => setPasswordData((p) => ({ ...p, current_password: e.target.value }))}
-                      placeholder="Enter current password" className="h-10 pl-12 pr-10 rounded-sm" />
+                      onChange={(e) => { setPasswordData((p) => ({ ...p, current_password: e.target.value })); setPasswordErrors((p) => ({ ...p, current_password: "" })); }}
+                      onBlur={() => { if (!passwordData.current_password) setPasswordErrors((p) => ({ ...p, current_password: "Current password is required" })); }}
+                      placeholder="Enter current password" className={`h-10 pl-12 pr-10 rounded-sm ${passwordErrors.current_password ? "border-rose-500" : ""}`} />
                     <button type="button" onClick={() => setShowCurrent((v) => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                       {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </FormGroup>
 
-                  <FormGroup label="New Password" icon={Lock}>
+                  <FormGroup label="New Password" icon={Lock} error={passwordErrors.new_password}>
                     <Input type={showNew ? "text" : "password"} value={passwordData.new_password}
-                      onChange={(e) => setPasswordData((p) => ({ ...p, new_password: e.target.value }))}
-                      placeholder="Enter new password" className="h-10 pl-12 pr-10 rounded-sm" />
+                      onChange={(e) => { setPasswordData((p) => ({ ...p, new_password: e.target.value })); setPasswordErrors((p) => ({ ...p, new_password: "" })); }}
+                      onBlur={() => {
+                        const v = passwordData.new_password;
+                        if (!v) setPasswordErrors((p) => ({ ...p, new_password: "New password is required" }));
+                        else if (v.trim().length < 6) setPasswordErrors((p) => ({ ...p, new_password: "Password must be at least 6 characters" }));
+                        else if (v.trim() === passwordData.current_password.trim()) setPasswordErrors((p) => ({ ...p, new_password: "Must differ from current password" }));
+                      }}
+                      placeholder="Enter new password" className={`h-10 pl-12 pr-10 rounded-sm ${passwordErrors.new_password ? "border-rose-500" : ""}`} />
                     <button type="button" onClick={() => setShowNew((v) => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                       {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </FormGroup>
 
-                  <FormGroup label="Confirm Password" icon={Lock}>
+                  <FormGroup label="Confirm Password" icon={Lock} error={passwordErrors.confirm_password}>
                     <Input type={showConfirm ? "text" : "password"} value={passwordData.confirm_password}
-                      onChange={(e) => setPasswordData((p) => ({ ...p, confirm_password: e.target.value }))}
-                      placeholder="Confirm new password" className="h-10 pl-12 pr-10 rounded-sm" />
+                      onChange={(e) => { setPasswordData((p) => ({ ...p, confirm_password: e.target.value })); setPasswordErrors((p) => ({ ...p, confirm_password: "" })); }}
+                      onBlur={() => { if (passwordData.confirm_password && passwordData.confirm_password !== passwordData.new_password) setPasswordErrors((p) => ({ ...p, confirm_password: "Passwords do not match" })); }}
+                      placeholder="Confirm new password" className={`h-10 pl-12 pr-10 rounded-sm ${passwordErrors.confirm_password ? "border-rose-500" : ""}`} />
                     <button type="button" onClick={() => setShowConfirm((v) => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                       {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}

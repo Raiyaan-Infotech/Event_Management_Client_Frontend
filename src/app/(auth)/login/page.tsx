@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { Building2 } from "lucide-react";
+import { usePublicBranding } from "@/hooks/use-public-branding";
+import { resolveMediaUrl } from "@/lib/utils";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +20,9 @@ export default function ClientLoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [logoError, setLogoError] = useState(false);
+  const { data: branding } = usePublicBranding();
+  const logoSrc = branding?.logo ? resolveMediaUrl(branding.logo) : "/vendor-logo.png";
   const [errors, setErrors] = useState({ email: "", password: "" });
   const [touched, setTouched] = useState({ email: false, password: false });
 
@@ -93,14 +99,19 @@ export default function ClientLoginPage() {
         {/* Floating Logo */}
         <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-10">
           <div className="h-14 w-14 rounded-lg bg-card p-1 shadow-md border border-border/50 overflow-hidden relative">
-            <div className="h-full w-full relative rounded-md overflow-hidden">
-              <Image
-                src="/vendor-logo.png"
-                alt="Client Portal"
-                fill
-                priority
-                className="object-cover"
-              />
+            <div className="h-full w-full relative rounded-md overflow-hidden flex items-center justify-center">
+              {logoError ? (
+                <Building2 className="size-7 text-primary" />
+              ) : (
+                <Image
+                  src={logoSrc}
+                  alt={branding?.name || "Client Portal"}
+                  fill
+                  priority
+                  className="object-cover"
+                  onError={() => setLogoError(true)}
+                />
+              )}
             </div>
           </div>
         </div>
