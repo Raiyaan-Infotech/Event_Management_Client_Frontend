@@ -12,9 +12,7 @@ import {
   Bell,
   Clock,
   CheckCheck,
-  MessageCircle,
   Mail,
-  Users,
   User,
   Settings,
   MessageSquare,
@@ -32,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "next-themes";
 import { useClientMe, useClientLogout } from "@/hooks/use-client-auth";
+import { useClientMailNotifications, useMarkClientNotificationsRead } from "@/hooks/use-client-mail";
 import { resolveMediaUrl } from "@/lib/utils";
 
 const ICON_BTN =
@@ -44,6 +43,10 @@ export default function VendorHeader() {
   const { data: client } = useClientMe();
   const logout = useClientLogout();
   const vendor = client?.vendor;
+  const { data: notifData } = useClientMailNotifications();
+  const markRead = useMarkClientNotificationsRead();
+  const unreadCount = notifData?.unread_count ?? 0;
+  const notifications = notifData?.notifications ?? [];
 
   React.useEffect(() => {
     setMounted(true);
@@ -138,116 +141,53 @@ export default function VendorHeader() {
         {/* Notifications */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`${ICON_BTN} p-0 data-[state=open]:bg-accent`}
-            >
+            <Button variant="ghost" size="icon" className={`${ICON_BTN} p-0 data-[state=open]:bg-accent`}>
               <div className="relative">
                 <Bell className="size-4" />
-                <span className="absolute -top-0.5 -right-0.5 size-2 bg-rose-500 rounded-full border-2 border-background" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 bg-rose-500 rounded-full border border-background flex items-center justify-center text-[9px] font-black text-white leading-none">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </div>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-[320px] p-0 border-border rounded-2xl shadow-xl mt-2 overflow-hidden"
-          >
+          <DropdownMenuContent align="end" className="w-[320px] p-0 border-border rounded-2xl shadow-xl mt-2 overflow-hidden">
             <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
               <h3 className="font-bold text-sm text-foreground">
-                Notifications
+                Notifications {unreadCount > 0 && <span className="ml-1.5 text-[10px] bg-rose-500 text-white rounded-full px-1.5 py-0.5 font-black">{unreadCount}</span>}
               </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs h-7 text-primary hover:text-primary hover:bg-primary/5 font-bold"
-              >
-                <CheckCheck className="size-3 mr-1" />
-                Mark all read
+              <Button variant="ghost" size="sm" className="text-xs h-7 text-primary hover:text-primary hover:bg-primary/5 font-bold"
+                onClick={() => markRead.mutate()}>
+                <CheckCheck className="size-3 mr-1" /> Mark all read
               </Button>
             </div>
             <ScrollArea className="h-[200px]">
               <div className="p-2 space-y-1">
-                {[
-                  {
-                    id: 1,
-                    type: "mail",
-                    title: "New Email",
-                    from: "Adrian Monino",
-                    text: "Someone who believes in you",
-                    time: "11:30 AM",
-                    href: "/support/mail",
-                    isRead: false,
-                  },
-                  {
-                    id: 2,
-                    type: "mail",
-                    title: "Weekly Update",
-                    from: "Albert Ansing",
-                    text: "Here's What You Missed This Week",
-                    time: "06:50 AM",
-                    href: "/support/mail",
-                    isRead: false,
-                  },
-                  {
-                    id: 3,
-                    type: "mail",
-                    title: "Search Tips",
-                    from: "Carla Guden",
-                    text: "4 Ways to Optimize Your Search",
-                    time: "Yesterday",
-                    href: "/support/mail",
-                    isRead: true,
-                  },
-                ].map((notif) => (
-                  <Link
-                    key={notif.id}
-                    href={notif.href}
-                    className="flex gap-3 p-3 rounded-lg hover:bg-muted transition-all group relative"
-                  >
-                    <div
-                      className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center border ${
-                        notif.type === "chat"
-                          ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
-                          : notif.type === "mail"
-                            ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/20"
-                            : "bg-purple-500/10 text-purple-500 border-purple-500/20"
-                      }`}
-                    >
-                      <div className="flex items-center justify-center">
-                        {" "}
-                        {notif.type === "chat" ? (
-                          <MessageCircle className="size-3.5" />
-                        ) : notif.type === "mail" ? (
-                          <Mail className="size-3.5" />
-                        ) : (
-                          <Users className="size-3.5" />
-                        )}
-                      </div>
+                {notifications.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground text-xs">No notifications</div>
+                ) : notifications.map((notif) => (
+                  <Link key={notif.id} href="/support/notification"
+                    className="flex gap-3 p-3 rounded-lg hover:bg-muted transition-all group relative">
+                    <div className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center border bg-indigo-500/10 text-indigo-500 border-indigo-500/20">
+                      <Mail className="size-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-0.5">
                         <div className="flex items-center gap-2">
-                          <span
-                            className={`text-[12px] font-bold text-foreground group-hover:text-primary transition-colors ${!notif.isRead ? "" : "opacity-70"}`}
-                          >
-                            {notif.title}
+                          <span className={`text-[12px] font-bold text-foreground group-hover:text-primary transition-colors ${notif.is_read ? "opacity-70" : ""}`}>
+                            New Mail
                           </span>
-                          {!notif.isRead && (
+                          {!notif.is_read && (
                             <span className="size-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
                           )}
                         </div>
                         <span className="text-[10px] text-muted-foreground whitespace-nowrap font-medium">
-                          {notif.time}
+                          {notif.mail?.sent_at ? new Date(notif.mail.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
                       </div>
-                      <p
-                        className={`text-[11px] text-muted-foreground truncate italic ${!notif.isRead ? "" : "opacity-60"}`}
-                      >
-                        <span className="font-bold text-foreground/80 not-italic">
-                          {notif.from};
-                        </span>{" "}
-                        {notif.text}
+                      <p className={`text-[11px] text-muted-foreground truncate ${notif.is_read ? "opacity-60" : ""}`}>
+                        {notif.mail?.subject || 'No subject'}
                       </p>
                     </div>
                   </Link>
@@ -255,13 +195,10 @@ export default function VendorHeader() {
               </div>
             </ScrollArea>
             <div className="p-3 text-center border-t border-border bg-card">
-              <Link href="/support/mail">
-              <Button
-                variant="link"
-                className="text-xs text-primary font-bold h-auto p-0"
-              >
-                View All Notifications
-              </Button>
+              <Link href="/support/notification">
+                <Button variant="link" className="text-xs text-primary font-bold h-auto p-0">
+                  View All Notifications
+                </Button>
               </Link>
             </div>
           </DropdownMenuContent>
