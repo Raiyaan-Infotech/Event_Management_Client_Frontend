@@ -140,9 +140,9 @@ export function ChatWorkspace({
   }, [portalType, qc]);
 
   React.useEffect(() => {
-    if (!selectedId || !socketRef.current) return;
+    if (!selectedId || !socketRef.current || !connected) return;
     socketRef.current.emit("chat:join", { conversationId: selectedId });
-  }, [selectedId]);
+  }, [selectedId, connected]);
 
   const lastMessage = messages[messages.length - 1] ?? null;
   const lastMessageId = lastMessage?.id ?? null;
