@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
+import { apiClient } from "@/lib/api-client";
 import {
   Bold,
   Italic,
@@ -99,37 +100,41 @@ export function ChatWorkspace({
   }, [conversations, selectedId]);
 
   React.useEffect(() => {
-    const socket = io(socketUrl(), {
-      withCredentials: true,
-      auth: { portalType },
-      transports: ["polling", "websocket"],
-    });
-    socketRef.current = socket;
-
-    socket.on("connect", () => setConnected(true));
-    socket.on("disconnect", () => setConnected(false));
-    socket.on("chat:presence:list", (items: { actor_type: ChatActorType; actor_id: number; online: boolean }[]) => {
-      setOnlineActors(new Set(items.filter((item) => item.online).map((item) => `${item.actor_type}:${item.actor_id}`)));
-    });
-    socket.on("chat:presence", (item: { actor_type: ChatActorType; actor_id: number; online: boolean }) => {
-      setOnlineActors((prev) => {
-        const next = new Set(prev);
-        const key = `${item.actor_type}:${item.actor_id}`;
-        if (item.online) next.add(key);
-        else next.delete(key);
-        return next;
+    let destroyed = false;
+    apiClient.get('/chat/token').then((res) => {
+      if (destroyed) return;
+      const token: string = res.data?.data?.token || '';
+      const socket = io(socketUrl(), {
+        withCredentials: true,
+        auth: { portalType, token },
+        transports: ["polling", "websocket"],
       });
-    });
-    socket.on("chat:message", (incoming: ChatMessage) => {
-      qc.setQueryData<ChatMessage[]>(chatKeys.messages(incoming.conversation_id), (old = []) => {
-        if (old.some((item) => item.id === incoming.id)) return old;
-        return [...old, incoming];
+      socketRef.current = socket;
+      socket.on("connect", () => setConnected(true));
+      socket.on("disconnect", () => setConnected(false));
+      socket.on("chat:presence:list", (items: { actor_type: ChatActorType; actor_id: number; online: boolean }[]) => {
+        setOnlineActors(new Set(items.filter((item) => item.online).map((item) => `${item.actor_type}:${item.actor_id}`)));
       });
-      qc.invalidateQueries({ queryKey: chatKeys.conversations });
-    });
-
+      socket.on("chat:presence", (item: { actor_type: ChatActorType; actor_id: number; online: boolean }) => {
+        setOnlineActors((prev) => {
+          const next = new Set(prev);
+          const key = `${item.actor_type}:${item.actor_id}`;
+          if (item.online) next.add(key);
+          else next.delete(key);
+          return next;
+        });
+      });
+      socket.on("chat:message", (incoming: ChatMessage) => {
+        qc.setQueryData<ChatMessage[]>(chatKeys.messages(incoming.conversation_id), (old = []) => {
+          if (old.some((item) => item.id === incoming.id)) return old;
+          return [...old, incoming];
+        });
+        qc.invalidateQueries({ queryKey: chatKeys.conversations });
+      });
+    }).catch(() => {});
     return () => {
-      socket.disconnect();
+      destroyed = true;
+      socketRef.current?.disconnect();
       socketRef.current = null;
     };
   }, [portalType, qc]);
