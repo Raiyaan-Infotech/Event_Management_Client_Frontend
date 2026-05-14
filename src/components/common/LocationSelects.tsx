@@ -116,9 +116,11 @@ function LocationSelect({
 export function LocationSelects({
   values,
   onChange,
+  errors = {},
 }: {
   values: LocationValues;
   onChange: (values: LocationValues) => void;
+  errors?: Partial<Record<keyof LocationValues, string>>;
 }) {
   const [countryId, setCountryId]   = useState<number | null>(null);
   const [stateId,   setStateId]     = useState<number | null>(null);
@@ -176,7 +178,7 @@ export function LocationSelects({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-      <FormGroup label="Country">
+      <FormGroup label="Country" error={errors.country}>
         <LocationSelect
           value={values.country}
           onValueChange={handleCountry}
@@ -187,7 +189,7 @@ export function LocationSelects({
         />
       </FormGroup>
 
-      <FormGroup label="State">
+      <FormGroup label="State" error={errors.state}>
         <LocationSelect
           value={values.state}
           onValueChange={handleState}
@@ -199,7 +201,7 @@ export function LocationSelects({
         />
       </FormGroup>
 
-      <FormGroup label="District">
+      <FormGroup label="District" error={errors.district}>
         <LocationSelect
           value={values.district}
           onValueChange={handleDistrict}
@@ -211,7 +213,7 @@ export function LocationSelects({
         />
       </FormGroup>
 
-      <FormGroup label="City">
+      <FormGroup label="City" error={errors.city}>
         <LocationSelect
           value={values.city}
           onValueChange={handleCity}

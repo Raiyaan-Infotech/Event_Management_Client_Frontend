@@ -105,3 +105,32 @@ export const useChangeClientPassword = () => {
     },
   });
 };
+
+export const useForgotClientPassword = () => {
+  return useMutation({
+    mutationFn: async (data: { email: string }) => {
+      const res = await apiClient.post('/vendors/client/auth/forgot-password', data);
+      return res.data as { success: boolean; message: string; data?: { reset_code: string } };
+    },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'Failed to send reset code');
+    },
+  });
+};
+
+export const useResetClientPassword = () => {
+  return useMutation({
+    mutationFn: async (data: { email: string; reset_code: string; new_password: string }) => {
+      const res = await apiClient.post('/vendors/client/auth/reset-password', data);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success('Password reset successfully. You can now log in.');
+    },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'Failed to reset password');
+    },
+  });
+};

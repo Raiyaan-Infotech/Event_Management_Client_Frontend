@@ -126,12 +126,23 @@ export default function ProfileContent() {
     });
   };
 
+  const validateNewPassword = (pw: string): string => {
+    if (!pw)                        return "New password is required";
+    if (/\s/.test(pw))              return "Password must not contain spaces";
+    if (pw.length < 8)              return "Password must be at least 8 characters";
+    if (!/[A-Z]/.test(pw))         return "Must include at least 1 uppercase letter";
+    if (!/[a-z]/.test(pw))         return "Must include at least 1 lowercase letter";
+    if (!/[0-9]/.test(pw))         return "Must include at least 1 number";
+    if (!/[^A-Za-z0-9]/.test(pw))  return "Must include at least 1 special character";
+    return "";
+  };
+
   const handlePasswordSave = async (e?: React.SyntheticEvent) => {
     e?.preventDefault();
     if (!passwordData.current_password) { toast.error("Current password is required"); return; }
-    if (!passwordData.new_password)     { toast.error("New password is required"); return; }
+    const pwErr = validateNewPassword(passwordData.new_password);
+    if (pwErr) { toast.error(pwErr); return; }
     if (!passwordData.confirm_password) { toast.error("Confirm password is required"); return; }
-    if (passwordData.new_password.trim().length < 6) { toast.error("New password must be at least 6 characters"); return; }
     if (passwordData.current_password.trim() === passwordData.new_password.trim()) { toast.error("New password must be different from current password"); return; }
     if (passwordData.new_password !== passwordData.confirm_password) {
       toast.error("Confirm password does not match");
@@ -255,9 +266,9 @@ export default function ProfileContent() {
                       onChange={(e) => { setPasswordData((p) => ({ ...p, new_password: e.target.value })); setPasswordErrors((p) => ({ ...p, new_password: "" })); }}
                       onBlur={() => {
                         const v = passwordData.new_password;
-                        if (!v) setPasswordErrors((p) => ({ ...p, new_password: "New password is required" }));
-                        else if (v.trim().length < 6) setPasswordErrors((p) => ({ ...p, new_password: "Password must be at least 6 characters" }));
-                        else if (v.trim() === passwordData.current_password.trim()) setPasswordErrors((p) => ({ ...p, new_password: "Must differ from current password" }));
+                        const err = validateNewPassword(v);
+                        if (err) { setPasswordErrors((p) => ({ ...p, new_password: err })); return; }
+                        if (v.trim() === passwordData.current_password.trim()) setPasswordErrors((p) => ({ ...p, new_password: "Must differ from current password" }));
                       }}
                       placeholder="Enter new password" className={`h-10 pl-12 pr-10 rounded-sm ${passwordErrors.new_password ? "border-rose-500" : ""}`} />
                     <button type="button" onClick={() => setShowNew((v) => !v)}

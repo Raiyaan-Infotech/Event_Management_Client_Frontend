@@ -22,7 +22,7 @@ export default function ClientLoginPage() {
   const [loading, setLoading] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const { data: branding } = usePublicBranding();
-  const logoSrc = branding?.logo ? resolveMediaUrl(branding.logo) : "/vendor-logo.png";
+  const logoSrc = branding?.logo ? resolveMediaUrl(branding.logo) : null;
   const [errors, setErrors] = useState({ email: "", password: "" });
   const [touched, setTouched] = useState({ email: false, password: false });
 
@@ -100,7 +100,7 @@ export default function ClientLoginPage() {
         <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-10">
           <div className="h-14 w-14 rounded-lg bg-card p-1 shadow-md border border-border/50 overflow-hidden relative">
             <div className="h-full w-full relative rounded-md overflow-hidden flex items-center justify-center">
-              {logoError ? (
+              {!logoSrc || logoError ? (
                 <Building2 className="size-7 text-primary" />
               ) : (
                 <Image
@@ -217,7 +217,7 @@ export default function ClientLoginPage() {
                   href="/forgot-password"
                   className="text-xs text-primary hover:underline font-medium"
                 >
-                  Forgot password?
+                  Forgot Password?
                 </Link>
               </div>
 
