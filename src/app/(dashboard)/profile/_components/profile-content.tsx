@@ -22,6 +22,7 @@ import {
   useChangeClientPassword,
 } from "@/hooks/use-client-auth";
 import { resolveMediaUrl } from "@/lib/utils";
+import { validateMobile } from "@/lib/validation";
 
 // ─── Password Strength ────────────────────────────────────────────────────────
 function getPasswordStrength(pw: string): { level: 0 | 1 | 2 | 3 | 4; label: string; color: string; bg: string } {
@@ -110,7 +111,8 @@ export default function ProfileContent() {
   const handleSave = async (e?: React.SyntheticEvent) => {
     e?.preventDefault();
     const newErrors: Record<string, string> = {};
-    if (!formData.mobile.trim()) newErrors.mobile = "Mobile number is required";
+    const mobileErr = validateMobile(formData.mobile);
+    if (mobileErr) newErrors.mobile = mobileErr;
     if (Object.keys(newErrors).length) { setErrors(newErrors); toast.error("Please correct the errors"); return; }
     const { name: _name, ...editableData } = formData;
     await updateMutation.mutateAsync({ ...editableData, profile_pic: profilePic });
