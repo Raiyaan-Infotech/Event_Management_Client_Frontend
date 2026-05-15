@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
+import { designConfig } from "@/lib/design-config";
 
 interface CommonCardProps {
   title?: string;
@@ -19,28 +20,24 @@ export const CommonCard = ({
   title,
   subtitle,
   icon: Icon,
-  iconColorClass = "text-blue-600",
-  iconBgClass = "bg-blue-50 dark:bg-blue-500/10",
+  iconColorClass = "text-primary",
+  iconBgClass = "bg-primary/10",
   children,
   className,
-  isView = false
+  isView = false,
 }: CommonCardProps) => {
   return (
-    <div className={cn(
-      "bg-white dark:bg-[#1f2937]",
-      isView ? "border-none shadow-none p-0" : "rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]",
-      className
-    )}>
+    <div className={cn(isView ? "bg-transparent p-0" : cn(designConfig.surface.panel, designConfig.surface.panelPadded), className)}>
       {title && (
-        <div className="flex items-center gap-4 border-b border-gray-50 dark:border-gray-800/50 pb-4 mb-6">
+        <div className={cn("flex items-center gap-4", designConfig.surface.panelHeader)}>
           {Icon && (
-            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", iconBgClass, iconColorClass)}>
+            <div className={cn("w-10 h-10 flex items-center justify-center", designConfig.control.iconButton, iconBgClass, iconColorClass)}>
               <Icon size={20} />
             </div>
           )}
           <div>
-            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100 uppercase tracking-widest">{title}</h3>
-            {subtitle && <p className="text-[11px] text-gray-400 font-black uppercase tracking-widest">{subtitle}</p>}
+            <h3 className={designConfig.type.cardTitle}>{title}</h3>
+            {subtitle && <p className={designConfig.type.sectionSubtitle}>{subtitle}</p>}
           </div>
         </div>
       )}

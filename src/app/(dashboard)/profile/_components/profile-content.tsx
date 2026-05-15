@@ -282,6 +282,7 @@ export default function ProfileContent() {
                 </div>
 
                 {/* Strength bar — full width, only when new password has value */}
+                <p className="text-xs font-medium text-muted-foreground">Minimum 8 characters with uppercase, lowercase, number, and special character. Spaces are not allowed.</p>
                 <PasswordStrengthBar password={passwordData.new_password} />
 
                 <div>
@@ -360,3 +361,5 @@ export default function ProfileContent() {
     </div>
   );
 }
+
+

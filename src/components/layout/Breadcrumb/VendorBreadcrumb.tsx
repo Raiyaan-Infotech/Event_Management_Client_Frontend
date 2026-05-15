@@ -13,7 +13,7 @@ const navLabels: Record<string, string> = {
   payments:     "Payments",
   subscription: "Subscription",
   payment:      "Payment",
-  support:      "Support",
+  support:      "Communication",
   mail:         "Mail",
   compose:      "Compose",
   contacts:     "Contacts",
@@ -81,3 +81,4 @@ export default function VendorBreadcrumb() {
     </div>
   );
 }
+

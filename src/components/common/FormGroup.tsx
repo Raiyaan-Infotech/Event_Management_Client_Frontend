@@ -1,9 +1,10 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { designConfig } from "@/lib/design-config";
 
 interface FormGroupProps {
   label: string;
@@ -28,9 +29,8 @@ export const FormGroup = ({
 }: FormGroupProps) => {
   return (
     <div className={cn("space-y-2 group w-full", className)}>
-      <Label className="text-[11px] font-black text-gray-400 uppercase tracking-widest translate-x-1">
-        {label}{" "}
-        {!isView && required && <span className="text-red-500 ml-1">*</span>}
+      <Label className={cn(designConfig.type.label, "translate-x-1")}>
+        {label} {!isView && required && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <div className="relative">
         {Icon && (
@@ -38,11 +38,7 @@ export const FormGroup = ({
             className={cn(
               "absolute left-4 transition-colors z-10",
               iconTop ? "top-4" : "top-1/2 -translate-y-1/2",
-              isView
-                ? "text-gray-200"
-                : error
-                  ? "text-rose-400"
-                  : "text-gray-300 group-focus-within:text-blue-500",
+              isView ? "text-muted-foreground/30" : error ? "text-rose-400" : "text-muted-foreground/40 group-focus-within:text-primary",
             )}
             size={18}
           />
@@ -52,9 +48,7 @@ export const FormGroup = ({
       {error && !isView && (
         <div className="flex items-center gap-1.5 mt-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
           <AlertCircle size={12} className="text-rose-500" />
-          <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">
-            {error}
-          </span>
+          <span className={designConfig.type.error}>{error}</span>
         </div>
       )}
     </div>

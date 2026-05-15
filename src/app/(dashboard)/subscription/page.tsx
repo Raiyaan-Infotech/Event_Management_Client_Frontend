@@ -35,7 +35,11 @@ const useClientSubscriptionPlans = () =>
     queryKey: ["client-subscription-plans"],
     queryFn: async () => {
       const res = await apiClient.get("/vendors/client/subscription/plans");
-      return res.data.data as ClientSubscriptionResponse;
+      const payload = res.data?.data ?? res.data ?? {};
+      const custom_plans = Array.isArray(payload.custom_plans) ? payload.custom_plans : [];
+      const common_plans = Array.isArray(payload.common_plans) ? payload.common_plans : [];
+      const plans = Array.isArray(payload.plans) ? payload.plans : [...custom_plans, ...common_plans];
+      return { type: payload.type ?? "common", custom_plans, common_plans, plans } as ClientSubscriptionResponse;
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -137,7 +141,7 @@ export default function SubscriptionPage() {
           </p>
         </div>
 
-        {data.custom_plans.length > 0 && (
+        {(data.custom_plans ?? []).length > 0 && (
           <div className="flex items-center gap-3 rounded-sm border border-violet-200 bg-violet-50 px-4 py-3 dark:border-violet-500/20 dark:bg-violet-500/10">
             <Star className="size-4 shrink-0 text-violet-600" />
             <p className="text-sm font-semibold text-violet-700 dark:text-violet-300">
@@ -147,9 +151,11 @@ export default function SubscriptionPage() {
         )}
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {data.plans.map((plan) => <PlanCard key={plan.id} plan={plan} />)}
+          {(data.plans ?? []).map((plan) => <PlanCard key={plan.id} plan={plan} />)}
         </div>
       </div>
     </div>
   );
 }
+
+
