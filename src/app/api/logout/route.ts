@@ -5,10 +5,9 @@ import { NextResponse } from 'next/server';
  * Clears all client HttpOnly cookies server-side, then redirects to /login.
  * Used when the 401 interceptor can't clear HttpOnly cookies via JS.
  */
-export async function GET() {
-  const response = NextResponse.redirect(
-    new URL('/login', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3004')
-  );
+export async function GET(request: Request) {
+  const baseUrl = new URL(request.url).origin;
+  const response = NextResponse.redirect(new URL('/login', baseUrl));
 
   const clearOptions = {
     httpOnly: true,

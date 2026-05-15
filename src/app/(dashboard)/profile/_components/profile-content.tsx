@@ -24,6 +24,7 @@ import {
 } from "@/hooks/use-client-auth";
 import { resolveMediaUrl } from "@/lib/utils";
 import { validateMobile, validatePassword } from "@/lib/validation";
+import { PasswordHint } from "@/components/common/PasswordHint";
 
 // ─── Password Strength ────────────────────────────────────────────────────────
 function getPasswordStrength(pw: string): { level: 0 | 1 | 2 | 3 | 4; label: string; color: string; bg: string } {
@@ -281,8 +282,7 @@ export default function ProfileContent() {
                   </FormGroup>
                 </div>
 
-                {/* Strength bar — full width, only when new password has value */}
-                <p className="text-xs font-medium text-muted-foreground">Minimum 8 characters with uppercase, lowercase, number, and special character. Spaces are not allowed.</p>
+                <PasswordHint password={passwordData.new_password} />
                 <PasswordStrengthBar password={passwordData.new_password} />
 
                 <div>
