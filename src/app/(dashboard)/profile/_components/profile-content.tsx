@@ -4,9 +4,10 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   User, Mail, Phone, MapPin, Home, Hash,
-  Camera, Eye, EyeOff, ChevronRight, Lock,
+  Camera, ChevronRight, Lock,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ import {
   useChangeClientPassword,
 } from "@/hooks/use-client-auth";
 import { resolveMediaUrl } from "@/lib/utils";
-import { validateMobile } from "@/lib/validation";
+import { validateMobile, validatePassword } from "@/lib/validation";
 
 // ─── Password Strength ────────────────────────────────────────────────────────
 function getPasswordStrength(pw: string): { level: 0 | 1 | 2 | 3 | 4; label: string; color: string; bg: string } {
@@ -73,9 +74,6 @@ export default function ProfileContent() {
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const [cropperOpen, setCropperOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "", mobile: "", address: "",
@@ -128,16 +126,7 @@ export default function ProfileContent() {
     });
   };
 
-  const validateNewPassword = (pw: string): string => {
-    if (!pw)                        return "New password is required";
-    if (/\s/.test(pw))              return "Password must not contain spaces";
-    if (pw.length < 8)              return "Password must be at least 8 characters";
-    if (!/[A-Z]/.test(pw))         return "Must include at least 1 uppercase letter";
-    if (!/[a-z]/.test(pw))         return "Must include at least 1 lowercase letter";
-    if (!/[0-9]/.test(pw))         return "Must include at least 1 number";
-    if (!/[^A-Za-z0-9]/.test(pw))  return "Must include at least 1 special character";
-    return "";
-  };
+  const validateNewPassword = validatePassword;
 
   const handlePasswordSave = async (e?: React.SyntheticEvent) => {
     e?.preventDefault();
@@ -253,18 +242,18 @@ export default function ProfileContent() {
               <div className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
                   <FormGroup label="Current Password" icon={Lock} error={passwordErrors.current_password}>
-                    <Input type={showCurrent ? "text" : "password"} value={passwordData.current_password}
+                    <PasswordInput
+                      value={passwordData.current_password}
                       onChange={(e) => { setPasswordData((p) => ({ ...p, current_password: e.target.value })); setPasswordErrors((p) => ({ ...p, current_password: "" })); }}
                       onBlur={(e) => { if (!e.target.value) setPasswordErrors((p) => ({ ...p, current_password: "Current password is required" })); }}
-                      placeholder="Enter current password" className={`h-10 pl-12 pr-10 rounded-sm ${passwordErrors.current_password ? "border-rose-500" : ""}`} />
-                    <button type="button" onClick={() => setShowCurrent((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-                      {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+                      placeholder="Enter current password"
+                      className={`h-10 pl-12 rounded-sm ${passwordErrors.current_password ? "border-rose-500" : ""}`}
+                    />
                   </FormGroup>
 
                   <FormGroup label="New Password" icon={Lock} error={passwordErrors.new_password}>
-                    <Input type={showNew ? "text" : "password"} value={passwordData.new_password}
+                    <PasswordInput
+                      value={passwordData.new_password}
                       onChange={(e) => { setPasswordData((p) => ({ ...p, new_password: e.target.value })); setPasswordErrors((p) => ({ ...p, new_password: "" })); }}
                       onBlur={(e) => {
                         const v = e.target.value;
@@ -272,26 +261,23 @@ export default function ProfileContent() {
                         if (err) { setPasswordErrors((p) => ({ ...p, new_password: err })); return; }
                         if (v.trim() === passwordData.current_password.trim()) setPasswordErrors((p) => ({ ...p, new_password: "Must differ from current password" }));
                       }}
-                      placeholder="Enter new password" className={`h-10 pl-12 pr-10 rounded-sm ${passwordErrors.new_password ? "border-rose-500" : ""}`} />
-                    <button type="button" onClick={() => setShowNew((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-                      {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+                      placeholder="Enter new password"
+                      className={`h-10 pl-12 rounded-sm ${passwordErrors.new_password ? "border-rose-500" : ""}`}
+                    />
                   </FormGroup>
 
                   <FormGroup label="Confirm Password" icon={Lock} error={passwordErrors.confirm_password}>
-                    <Input type={showConfirm ? "text" : "password"} value={passwordData.confirm_password}
+                    <PasswordInput
+                      value={passwordData.confirm_password}
                       onChange={(e) => { setPasswordData((p) => ({ ...p, confirm_password: e.target.value })); setPasswordErrors((p) => ({ ...p, confirm_password: "" })); }}
                       onBlur={(e) => {
                         const v = e.target.value;
                         if (!v) { setPasswordErrors((p) => ({ ...p, confirm_password: "Confirm password is required" })); return; }
                         if (v !== passwordData.new_password) setPasswordErrors((p) => ({ ...p, confirm_password: "Passwords do not match" }));
                       }}
-                      placeholder="Confirm new password" className={`h-10 pl-12 pr-10 rounded-sm ${passwordErrors.confirm_password ? "border-rose-500" : ""}`} />
-                    <button type="button" onClick={() => setShowConfirm((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-                      {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+                      placeholder="Confirm new password"
+                      className={`h-10 pl-12 rounded-sm ${passwordErrors.confirm_password ? "border-rose-500" : ""}`}
+                    />
                   </FormGroup>
                 </div>
 

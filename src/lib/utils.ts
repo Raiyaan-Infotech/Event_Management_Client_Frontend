@@ -39,3 +39,14 @@ export function resolveMediaUrl(url: string | null | undefined): string {
 
   return normalizedUrl;
 }
+
+export function normalizePagination(raw: any, page: number, limit: number) {
+  if (!raw) return null;
+  const total      = raw.total ?? raw.totalItems ?? 0;
+  const totalPages = raw.totalPages ?? Math.ceil(total / limit);
+  return { page, totalItems: total, totalPages, hasNextPage: page < totalPages, hasPrevPage: page > 1, limit };
+}
+
+export function normalizeRows<T extends Record<string, any>>(rows: T[]): T[] {
+  return rows.map((r) => ({ ...r, created_at: r.created_at ?? r.createdAt ?? "" }));
+}
