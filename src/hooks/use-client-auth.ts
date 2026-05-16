@@ -91,13 +91,25 @@ export const useUpdateClientProfile = () => {
 };
 
 export const useChangeClientPassword = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: { current_password: string; new_password: string }) => {
       const res = await apiClient.put('/vendors/client/auth/change-password', data);
       return res.data;
     },
-    onSuccess: () => {
-      toast.success('Password changed successfully');
+    onSuccess: async () => {
+      queryClient.clear();
+      if (typeof window !== 'undefined') {
+        document.cookie = 'client_auth_pending=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
+      }
+      toast.success('Password changed successfully. Please login again.');
+      try {
+        await fetch('/api/logout', { method: 'GET', redirect: 'manual' });
+      } finally {
+        if (typeof window !== 'undefined') {
+          window.location.replace('/login');
+        }
+      }
     },
     onError: (error: unknown) => {
       const err = error as { response?: { data?: { message?: string } } };

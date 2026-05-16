@@ -32,7 +32,7 @@ export default function NotificationPage() {
 
         <div className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0 space-y-2">
-            <Badge variant="outline" className="w-fit rounded-sm px-2 py-1 text-[11px] uppercase tracking-[0.16em]">Support</Badge>
+            <Badge variant="outline" className="w-fit rounded-sm px-2 py-1 text-[11px] uppercase tracking-[0.16em]">Communication</Badge>
             <div className="flex items-center gap-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-primary text-primary-foreground">
                 <Bell className="size-5" />
@@ -96,7 +96,7 @@ export default function NotificationPage() {
                   </tr>
                 ) : (
                   filtered.map((n) => (
-                    <tr key={n.id} onClick={() => router.push(`/support/mail?mailId=${n.mail_id}`)} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors cursor-pointer">
+                    <tr key={n.id} onClick={() => router.push(`/communication/mail?mailId=${n.mail_id}`)} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors cursor-pointer">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="shrink-0 w-8 h-8 rounded-sm bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 flex items-center justify-center">

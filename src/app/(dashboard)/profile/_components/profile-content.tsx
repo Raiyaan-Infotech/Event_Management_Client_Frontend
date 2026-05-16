@@ -282,7 +282,7 @@ export default function ProfileContent() {
                   </FormGroup>
                 </div>
 
-                <PasswordHint password={passwordData.new_password} />
+                <PasswordHint password={passwordData.new_password} alwaysShow />
                 <PasswordStrengthBar password={passwordData.new_password} />
 
                 <div>
@@ -361,5 +361,4 @@ export default function ProfileContent() {
     </div>
   );
 }
-
 

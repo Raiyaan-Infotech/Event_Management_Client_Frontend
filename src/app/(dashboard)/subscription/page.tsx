@@ -1,50 +1,16 @@
 "use client";
 
 import { Clock, CreditCard, Star, Zap } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface SubscriptionPlan {
-  id: number;
-  name: string;
-  description: string | null;
-  price: string;
-  discounted_price: string | null;
-  validity: number | null;
-  features: string | null;
-  is_custom: number;
-  vendor_id: number | null;
-}
-
-interface ClientSubscriptionResponse {
-  type: "custom_plus_common" | "common";
-  custom_plans: SubscriptionPlan[];
-  common_plans: SubscriptionPlan[];
-  plans: SubscriptionPlan[];
-}
+import { type ClientSubscriptionPlan, useClientSubscriptionPlans } from "@/hooks/use-client-subscription";
 
 const formatPrice = (price: string | null) => {
   if (!price || Number(price) === 0) return "Free";
   return `INR ${Number(price).toLocaleString("en-IN")}`;
 };
 
-const useClientSubscriptionPlans = () =>
-  useQuery({
-    queryKey: ["client-subscription-plans"],
-    queryFn: async () => {
-      const res = await apiClient.get("/vendors/client/subscription/plans");
-      const payload = res.data?.data ?? res.data ?? {};
-      const custom_plans = Array.isArray(payload.custom_plans) ? payload.custom_plans : [];
-      const common_plans = Array.isArray(payload.common_plans) ? payload.common_plans : [];
-      const plans = Array.isArray(payload.plans) ? payload.plans : [...custom_plans, ...common_plans];
-      return { type: payload.type ?? "common", custom_plans, common_plans, plans } as ClientSubscriptionResponse;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
-function PlanCard({ plan }: { plan: SubscriptionPlan }) {
+function PlanCard({ plan }: { plan: ClientSubscriptionPlan }) {
   const isCustom = plan.is_custom === 1;
   const hasDiscount = plan.discounted_price && Number(plan.discounted_price) > 0;
 
@@ -150,9 +116,16 @@ export default function SubscriptionPage() {
           </div>
         )}
 
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {(data.plans ?? []).map((plan) => <PlanCard key={plan.id} plan={plan} />)}
-        </div>
+        {(data.plans ?? []).length > 0 ? (
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {(data.plans ?? []).map((plan) => <PlanCard key={plan.id} plan={plan} />)}
+          </div>
+        ) : (
+          <div className="rounded-sm border border-dashed border-border bg-card p-10 text-center">
+            <CreditCard className="mx-auto mb-3 size-8 text-muted-foreground" />
+            <p className="text-sm font-bold text-muted-foreground">No subscription plans available</p>
+          </div>
+        )}
       </div>
     </div>
   );

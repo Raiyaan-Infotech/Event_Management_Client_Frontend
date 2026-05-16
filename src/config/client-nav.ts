@@ -36,9 +36,9 @@ export const clientNavItems: PortalNavItem[] = [
     label: 'Communication',
     icon: MessageSquare,
     children: [
-      { label: 'Mail', href: '/support/mail', icon: Mail },
+      { label: 'Mail', href: '/communication/mail', icon: Mail },
       { label: 'Chat', href: '/communication/chat', icon: MessageCircle },
-      { label: 'Notification', href: '/support/notification', icon: Bell },
+      { label: 'Notification', href: '/communication/notification', icon: Bell },
     ],
   },
   { label: 'Mobile Theme', href: '/mobile-theme', icon: Smartphone },
