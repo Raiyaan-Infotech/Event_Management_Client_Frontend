@@ -209,9 +209,12 @@ export default function VendorHeader() {
           <DropdownMenuTrigger asChild>
             <div className="flex items-center gap-2 cursor-pointer group outline-none ml-1">
               <Avatar className="size-9 border border-border rounded-full group-hover:border-primary/30 transition-colors">
-                <AvatarImage
-                  src={resolveMediaUrl(client?.profile_pic) || undefined}
-                />
+                {client?.profile_pic ? (
+                  <AvatarImage
+                    src={resolveMediaUrl(client.profile_pic)}
+                    alt={client?.name ?? "Profile"}
+                  />
+                ) : null}
                 <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
                   {client?.name?.charAt(0).toUpperCase() ?? "C"}
                 </AvatarFallback>

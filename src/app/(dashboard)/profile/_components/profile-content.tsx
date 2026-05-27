@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   User, Mail, Phone, MapPin, Home, Hash,
-  Camera, ChevronRight, Lock,
+  Camera, ChevronRight, Lock, Pencil,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -23,7 +23,7 @@ import {
   useChangeClientPassword,
 } from "@/hooks/use-client-auth";
 import { resolveMediaUrl } from "@/lib/utils";
-import { validateMobile, validatePassword } from "@/lib/validation";
+import { digitsOnly, validateMobile, validatePassword, validatePincode } from "@/lib/validation";
 import { PasswordHint } from "@/components/common/PasswordHint";
 
 // ─── Password Strength ────────────────────────────────────────────────────────
@@ -75,6 +75,7 @@ export default function ProfileContent() {
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const [cropperOpen, setCropperOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "", mobile: "", address: "",
@@ -112,9 +113,22 @@ export default function ProfileContent() {
     const newErrors: Record<string, string> = {};
     const mobileErr = validateMobile(formData.mobile);
     if (mobileErr) newErrors.mobile = mobileErr;
-    if (Object.keys(newErrors).length) { setErrors(newErrors); toast.error("Please correct the errors"); return; }
+    if (!formData.address.trim())   newErrors.address  = "Address is required";
+    if (!formData.country.trim())   newErrors.country  = "Country is required";
+    if (!formData.state.trim())     newErrors.state    = "State is required";
+    if (!formData.district.trim())  newErrors.district = "District is required";
+    if (!formData.city.trim())      newErrors.city     = "City is required";
+    if (!formData.locality.trim())  newErrors.locality = "Locality is required";
+    const pincodeErr = validatePincode(formData.pincode);
+    if (pincodeErr) newErrors.pincode = pincodeErr;
+    if (Object.keys(newErrors).length) {
+      setErrors(newErrors);
+      toast.error("Please fill all mandatory fields.");
+      return;
+    }
     const { name: _name, ...editableData } = formData;
     await updateMutation.mutateAsync({ ...editableData, profile_pic: profilePic });
+    setEditMode(false);
   };
 
   const handleReset = () => {
@@ -125,6 +139,8 @@ export default function ProfileContent() {
       country: client.country || "", state: client.state || "", district: client.district || "",
       city: client.city || "", locality: client.locality || "", pincode: client.pincode || "",
     });
+    setErrors({});
+    setEditMode(false);
   };
 
   const validateNewPassword = validatePassword;
@@ -199,7 +215,8 @@ export default function ProfileContent() {
 
                 <FormGroup label="Mobile Number" icon={Phone} error={errors.mobile} required>
                   <Input value={formData.mobile} onChange={set("mobile")} placeholder="Enter mobile number"
-                    className={`h-10 pl-12 rounded-sm ${errors.mobile ? "border-rose-500" : ""}`} />
+                    readOnly={!editMode} disabled={!editMode}
+                    className={`h-10 pl-12 rounded-sm ${errors.mobile ? "border-rose-500" : ""} ${!editMode ? "bg-muted/50 cursor-default opacity-70" : ""}`} />
                 </FormGroup>
 
                 <FormGroup label="Email Address" icon={Mail}>
@@ -213,25 +230,58 @@ export default function ProfileContent() {
             <CommonCard title="Address Details" subtitle="Physical location and correspondence info"
               icon={MapPin} iconColorClass="text-orange-600" iconBgClass="bg-orange-50 dark:bg-orange-500/10">
               <div className="space-y-5">
-                <FormGroup label="Street Address" icon={Home} iconTop>
-                  <textarea value={formData.address} onChange={set("address")} placeholder="Enter full address"
-                    className="w-full pl-12 pr-3 py-3 border border-input bg-background rounded-sm outline-none transition-all text-sm min-h-[90px] resize-none focus:ring-2 focus:ring-ring" />
+                <FormGroup label="Street Address" icon={Home} iconTop error={errors.address} required>
+                  <textarea
+                    value={formData.address}
+                    onChange={set("address")}
+                    placeholder="Enter full address"
+                    readOnly={!editMode}
+                    disabled={!editMode}
+                    className={`w-full pl-12 pr-3 py-3 border bg-background rounded-sm outline-none transition-all text-sm min-h-[90px] resize-none focus:ring-2 focus:ring-ring ${errors.address ? "border-rose-500" : "border-input"} ${!editMode ? "bg-muted/50 cursor-default opacity-70" : ""}`}
+                  />
                 </FormGroup>
 
                 <LocationSelects
                   values={{ country: formData.country, state: formData.state, district: formData.district, city: formData.city }}
-                  onChange={(loc: LocationValues) => setFormData((prev) => ({ ...prev, ...loc }))}
+                  onChange={(loc: LocationValues) => {
+                    setFormData((prev) => ({ ...prev, ...loc }));
+                    setErrors((prev) => ({ ...prev, country: "", state: "", district: "", city: "" }));
+                  }}
+                  errors={{ country: errors.country, state: errors.state, district: errors.district, city: errors.city }}
+                  required
+                  disabled={!editMode}
                 />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-                  <FormGroup label="Locality" icon={MapPin}>
-                    <Input value={formData.locality} onChange={set("locality")} placeholder="Enter locality"
-                      className="h-10 pl-12 rounded-sm" />
+                  <FormGroup label="Locality" icon={MapPin} error={errors.locality} required>
+                    <Input
+                      value={formData.locality}
+                      onChange={set("locality")}
+                      placeholder="Enter locality"
+                      readOnly={!editMode}
+                      disabled={!editMode}
+                      className={`h-10 pl-12 rounded-sm ${errors.locality ? "border-rose-500" : ""} ${!editMode ? "bg-muted/50 cursor-default opacity-70" : ""}`}
+                    />
                   </FormGroup>
 
-                  <FormGroup label="Pincode" icon={Hash}>
-                    <Input value={formData.pincode} onChange={set("pincode")} placeholder="Enter pincode"
-                      className="h-10 pl-12 rounded-sm" />
+                  <FormGroup label="Pincode" icon={Hash} error={errors.pincode} required>
+                    <Input
+                      value={formData.pincode}
+                      onChange={(e) => {
+                        setFormData((prev) => ({ ...prev, pincode: digitsOnly(e.target.value, 10) }));
+                        if (errors.pincode) setErrors((prev) => ({ ...prev, pincode: "" }));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key.length === 1 && !/[0-9]/.test(e.key) && !e.ctrlKey && !e.metaKey) {
+                          e.preventDefault();
+                        }
+                      }}
+                      inputMode="numeric"
+                      placeholder="Enter pincode"
+                      readOnly={!editMode}
+                      disabled={!editMode}
+                      className={`h-10 pl-12 rounded-sm ${errors.pincode ? "border-rose-500" : ""} ${!editMode ? "bg-muted/50 cursor-default opacity-70" : ""}`}
+                    />
                   </FormGroup>
                 </div>
               </div>
@@ -300,24 +350,44 @@ export default function ProfileContent() {
 
             {/* Save Actions */}
             <div className="bg-card rounded-sm border border-border p-5 shadow-sm">
-              <ActionFooter onSave={handleSave} onCancel={handleReset}
-                saveLabel="Save Profile" cancelLabel="Reset Changes"
-                isSubmitting={updateMutation.isPending} />
+              {editMode ? (
+                <ActionFooter
+                  onSave={handleSave}
+                  onCancel={handleReset}
+                  saveLabel="Save Profile"
+                  cancelLabel="Cancel"
+                  isSubmitting={updateMutation.isPending}
+                />
+              ) : (
+                <Button
+                  type="button"
+                  onClick={() => setEditMode(true)}
+                  className="w-full h-10 rounded-sm text-[12px] font-bold uppercase tracking-wider gap-2"
+                >
+                  <Pencil size={14} /> Edit Profile
+                </Button>
+              )}
             </div>
 
             {/* Profile Photo */}
             <div className="bg-card rounded-sm border border-border p-6 shadow-sm text-center space-y-4">
               <div className="relative w-28 h-28 mx-auto">
                 <Avatar className="w-full h-full rounded-full border-4 border-background shadow-lg">
-                  <AvatarImage src={profilePic || undefined} />
+                  {/* Show profile photo when set; otherwise AvatarFallback renders the first letter.
+                      key={profilePic} forces Radix to re-evaluate when the src changes/clears. */}
+                  {profilePic ? (
+                    <AvatarImage key={profilePic} src={profilePic} alt={client?.name ?? "Profile"} className="object-cover" />
+                  ) : null}
                   <AvatarFallback className="bg-primary/10 text-primary text-3xl font-black">
                     {client?.name?.charAt(0)?.toUpperCase() || "C"}
                   </AvatarFallback>
                 </Avatar>
-                <label className="absolute bottom-0 right-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center cursor-pointer shadow-md hover:opacity-90 transition-opacity border-2 border-background z-10">
-                  <Camera size={14} />
-                  <input type="file" className="hidden" onChange={handleFileChange} accept="image/*" />
-                </label>
+                {editMode && (
+                  <label className="absolute bottom-0 right-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center cursor-pointer shadow-md hover:opacity-90 transition-opacity border-2 border-background z-10">
+                    <Camera size={14} />
+                    <input type="file" className="hidden" onChange={handleFileChange} accept="image/*" />
+                  </label>
+                )}
               </div>
               <div>
                 <p className="font-bold text-sm text-foreground">{client?.name}</p>

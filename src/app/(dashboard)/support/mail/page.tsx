@@ -217,7 +217,14 @@ function SupportMailContent() {
 
   const handleSelectInbox = (row: InboxRow) => {
     setSelectedInboxId(row.mail.id);
+    // Clear sent selection so the detail panel in "all" mode shows the inbox item.
+    setSelectedSentId(null);
     if (!getRecipient(row).is_read) markRead.mutate(row.mail.id);
+  };
+
+  const handleSelectSent = (mailId: number) => {
+    setSelectedSentId(mailId);
+    setSelectedInboxId(null);
   };
 
   const toggleSelect = (id: number) => setSelectedIds(prev => {
@@ -227,12 +234,32 @@ function SupportMailContent() {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
   });
 
-  const currentRows = folder === "sent" ? [] : inboxRows;
-  const isLoading   = folder === "sent" ? sentLoading : inboxLoading;
-  const isFetching  = folder === "sent" ? sentFetching : inboxFetching;
+  const currentRows = folder === "sent" ? [] : folder === "all" ? inboxRows : inboxRows;
+  const isLoading   = folder === "sent" ? sentLoading : folder === "all" ? (inboxLoading || sentLoading) : inboxLoading;
+  const isFetching  = folder === "sent" ? sentFetching : folder === "all" ? (inboxFetching || sentFetching) : inboxFetching;
 
   const vendorId   = client?.vendor_id;
   const vendorName = client?.vendor?.company_name ?? "Your Vendor";
+
+  // For "All Mails": merge inbox + sent into one chronological list.
+  // Each item carries a `kind` so the row renderer knows which side it's on.
+  type AllItem =
+    | { kind: "inbox"; row: InboxRow; dateValue: number }
+    | { kind: "sent"; mail: SentMail; dateValue: number };
+  const allRows: AllItem[] = useMemo(() => {
+    if (folder !== "all") return [];
+    const inbox: AllItem[] = inboxRows.map((row) => ({
+      kind: "inbox" as const,
+      row,
+      dateValue: new Date(row.mail.sent_at || row.mail.created_at).getTime(),
+    }));
+    const sent: AllItem[] = sentRows.map((mail) => ({
+      kind: "sent" as const,
+      mail,
+      dateValue: new Date(mail.sent_at || mail.createdAt).getTime(),
+    }));
+    return [...inbox, ...sent].sort((a, b) => b.dateValue - a.dateValue);
+  }, [folder, inboxRows, sentRows]);
 
   return (
     <div className="h-[calc(100vh-86px)] overflow-hidden px-6 pt-4 pb-4 flex flex-col gap-4">
@@ -295,10 +322,83 @@ function SupportMailContent() {
           {/* Mail list + detail */}
           <div className="flex flex-1 min-h-0 overflow-hidden">
             {/* List */}
-            <div className={`flex flex-col border-r border-border overflow-y-auto transition-all ${(folder === "inbox" ? selectedInboxId : selectedSentId) ? "w-[42%] shrink-0" : "flex-1"}`}>
+            <div className={`flex flex-col border-r border-border overflow-y-auto transition-all ${(selectedInboxRow || selectedSentMail) ? "w-[42%] shrink-0" : "flex-1"}`}>
               {isLoading ? (
                 <div className="p-10 text-center text-sm text-muted-foreground font-bold">Loading…</div>
-              ) : folder === "inbox" || folder === "all" ? (
+              ) : folder === "all" ? (
+                allRows.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground py-16">
+                    <Mail className="w-10 h-10 opacity-20" />
+                    <p className="text-sm font-semibold">No mail yet</p>
+                  </div>
+                ) : allRows.map((item) => {
+                  if (item.kind === "inbox") {
+                    const row = item.row;
+                    const isSelected = selectedIds.has(row.mail.id);
+                    const isStarred  = starredIds.has(row.mail.id);
+                    const isRead     = getRecipient(row).is_read === 1;
+                    const isActive   = selectedInboxId === row.mail.id;
+                    return (
+                      <div key={`in-${row.mail.id}`}
+                        onClick={() => handleSelectInbox(row)}
+                        className={`group relative flex items-start gap-3 pt-[18px] pb-[16px] pr-5 border-b border-border transition-all cursor-pointer
+                          ${isActive ? "bg-primary/10 border-l-[3px] border-l-primary pl-[17px]"
+                            : isRead ? "bg-card hover:bg-muted/20 border-l-[3px] border-l-transparent pl-[17px]"
+                            : "bg-muted/10 hover:bg-muted/30 border-l-[3px] border-l-indigo-500 pl-[17px]"}`}>
+                        <div className="flex items-center gap-3 shrink-0 mt-0.5">
+                          <label className="cursor-pointer" onClick={e => e.stopPropagation()}>
+                            <div className={`flex items-center justify-center w-[15px] h-[15px] rounded-[3px] border ${isSelected ? "bg-primary border-primary" : "bg-transparent border-[#c4c9d7] hover:border-primary"} transition-all`}>
+                              {isSelected && <CheckSquare size={11} className="text-white" />}
+                            </div>
+                            <input type="checkbox" className="hidden" checked={isSelected} onChange={() => toggleSelect(row.mail.id)} />
+                          </label>
+                          <button onClick={e => { e.stopPropagation(); toggleStar(row.mail.id); }}
+                            className={`hover:scale-110 transition-transform ${isStarred ? "text-yellow-500" : "text-muted-foreground"}`}>
+                            <Star size={14} className={isStarred ? "fill-current" : ""} />
+                          </button>
+                        </div>
+                        <div className="relative shrink-0">
+                          <Avatar className="w-[30px] h-[30px]">
+                            <AvatarFallback className="bg-primary text-white font-bold text-[11px] rounded-full">
+                              {SENDER_LABEL[row.mail.sender_type]?.[0] ?? "S"}
+                            </AvatarFallback>
+                          </Avatar>
+                          {!isRead && <span className="absolute -top-0.5 -right-0.5 w-[8px] h-[8px] bg-indigo-500 rounded-full border-2 border-background" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between mb-0.5">
+                            <p className={`text-[13px] truncate group-hover:text-primary transition-colors ${isRead ? "font-semibold text-muted-foreground" : "font-black text-foreground"}`}>
+                              From: {SENDER_LABEL[row.mail.sender_type] ?? row.mail.sender_type}
+                            </p>
+                            <span className={`text-[11px] whitespace-nowrap ml-3 ${isRead ? "text-muted-foreground" : "text-foreground font-semibold"}`}>{fmt(row.mail.sent_at || row.mail.created_at)}</span>
+                          </div>
+                          <p className={`text-[13px] truncate ${isRead ? "font-medium text-foreground/70" : "font-bold text-foreground"}`}>{row.mail.subject}</p>
+                          <p className="text-[12px] text-muted-foreground truncate mt-0.5">{stripHtml(row.mail.body)}</p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  // sent row in merged view
+                  const mail = item.mail;
+                  const isActive = selectedSentId === mail.id;
+                  return (
+                    <div key={`out-${mail.id}`} onClick={() => handleSelectSent(mail.id)}
+                      className={`group flex items-start gap-3 pt-[18px] pb-[16px] px-5 border-b border-border transition-all cursor-pointer border-l-[3px] border-l-transparent ${isActive ? "bg-primary/10 !border-l-primary" : "bg-card hover:bg-muted/20"}`}>
+                      <Avatar className="w-[30px] h-[30px] shrink-0 mt-0.5">
+                        <AvatarFallback className="bg-emerald-500 text-white font-bold text-[11px] rounded-full">S</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-0.5">
+                          <p className="text-[13px] font-semibold text-muted-foreground truncate group-hover:text-primary transition-colors">To: {vendorName}</p>
+                          <span className="text-[11px] text-muted-foreground whitespace-nowrap ml-3">{fmt(mail.sent_at || mail.createdAt)}</span>
+                        </div>
+                        <p className="text-[13px] font-bold text-foreground truncate">{mail.subject}</p>
+                        <p className="text-[12px] text-muted-foreground truncate mt-0.5">{stripHtml(mail.body)}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : folder === "inbox" ? (
                 inboxRows.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground py-16">
                     <MailOpen className="w-10 h-10 opacity-20" />
@@ -359,7 +459,7 @@ function SupportMailContent() {
                 ) : sentRows.map(mail => {
                   const isActive = selectedSentId === mail.id;
                   return (
-                    <div key={mail.id} onClick={() => setSelectedSentId(mail.id)}
+                    <div key={mail.id} onClick={() => handleSelectSent(mail.id)}
                       className={`group flex items-start gap-3 pt-[18px] pb-[16px] px-5 border-b border-border transition-all cursor-pointer border-l-[3px] border-l-transparent ${isActive ? "bg-primary/10 !border-l-primary" : "bg-card hover:bg-muted/20"}`}>
                       <Avatar className="w-[30px] h-[30px] shrink-0 mt-0.5">
                         <AvatarFallback className="bg-emerald-500 text-white font-bold text-[11px] rounded-full">S</AvatarFallback>
@@ -378,33 +478,35 @@ function SupportMailContent() {
               )}
             </div>
 
-            {/* Detail panel */}
-            {(folder !== "sent" ? selectedInboxId : selectedSentId) && (
+            {/* Detail panel — drives off whichever selection is active.
+                Works across inbox / sent / all because handleSelectInbox and
+                handleSelectSent are mutually exclusive. */}
+            {(selectedInboxRow || selectedSentMail) && (
               <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="p-5 border-b border-border flex items-start justify-between gap-4 shrink-0">
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                      {folder !== "sent" && selectedInboxRow
+                      {selectedInboxRow
                         ? `From: ${SENDER_LABEL[selectedInboxRow.mail.sender_type] ?? selectedInboxRow.mail.sender_type}`
                         : `To: ${vendorName}`}
                     </p>
                     <h3 className="text-[16px] font-black text-foreground leading-snug break-words">
-                      {folder !== "sent" ? selectedInboxRow?.mail.subject : selectedSentMail?.subject}
+                      {selectedInboxRow ? selectedInboxRow.mail.subject : selectedSentMail?.subject}
                     </h3>
                     <p className="text-[11px] text-muted-foreground mt-1">
-                      {folder !== "sent"
-                        ? fmt(selectedInboxRow?.mail.sent_at || selectedInboxRow?.mail.created_at)
+                      {selectedInboxRow
+                        ? fmt(selectedInboxRow.mail.sent_at || selectedInboxRow.mail.created_at)
                         : fmt(selectedSentMail?.sent_at || selectedSentMail?.createdAt)}
                     </p>
                   </div>
-                  <button onClick={() => folder !== "sent" ? setSelectedInboxId(null) : setSelectedSentId(null)}
+                  <button onClick={() => { setSelectedInboxId(null); setSelectedSentId(null); }}
                     className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-all shrink-0">
                     <X size={15} />
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-5">
                   <div className="prose prose-sm dark:prose-invert max-w-none text-[14px] text-foreground leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: folder !== "sent" ? (selectedInboxRow?.mail.body ?? "") : (selectedSentMail?.body ?? "") }} />
+                    dangerouslySetInnerHTML={{ __html: selectedInboxRow ? selectedInboxRow.mail.body : (selectedSentMail?.body ?? "") }} />
                 </div>
               </div>
             )}

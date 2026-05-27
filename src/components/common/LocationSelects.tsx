@@ -117,10 +117,14 @@ export function LocationSelects({
   values,
   onChange,
   errors = {},
+  required = false,
+  disabled = false,
 }: {
   values: LocationValues;
   onChange: (values: LocationValues) => void;
   errors?: Partial<Record<keyof LocationValues, string>>;
+  required?: boolean;
+  disabled?: boolean;
 }) {
   const [countryId, setCountryId]   = useState<number | null>(null);
   const [stateId,   setStateId]     = useState<number | null>(null);
@@ -178,49 +182,50 @@ export function LocationSelects({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-      <FormGroup label="Country" error={errors.country}>
+      <FormGroup label="Country" error={errors.country} required={required}>
         <LocationSelect
           value={values.country}
           onValueChange={handleCountry}
           options={countries}
           placeholder="Select Country"
           icon={Flag}
+          disabled={disabled}
           isLoading={loadingCountries}
         />
       </FormGroup>
 
-      <FormGroup label="State" error={errors.state}>
+      <FormGroup label="State" error={errors.state} required={required}>
         <LocationSelect
           value={values.state}
           onValueChange={handleState}
           options={states}
           placeholder={values.country ? "Select State" : "Select Country First"}
           icon={Globe}
-          disabled={!countryId}
+          disabled={disabled || !countryId}
           isLoading={loadingStates}
         />
       </FormGroup>
 
-      <FormGroup label="District" error={errors.district}>
+      <FormGroup label="District" error={errors.district} required={required}>
         <LocationSelect
           value={values.district}
           onValueChange={handleDistrict}
           options={districts}
           placeholder={values.state ? "Select District" : "Select State First"}
           icon={Building}
-          disabled={!stateId}
+          disabled={disabled || !stateId}
           isLoading={loadingDistricts}
         />
       </FormGroup>
 
-      <FormGroup label="City" error={errors.city}>
+      <FormGroup label="City" error={errors.city} required={required}>
         <LocationSelect
           value={values.city}
           onValueChange={handleCity}
           options={cities}
           placeholder={values.district ? "Select City" : "Select District First"}
           icon={Building}
-          disabled={!districtId}
+          disabled={disabled || !districtId}
           isLoading={loadingCities}
         />
       </FormGroup>

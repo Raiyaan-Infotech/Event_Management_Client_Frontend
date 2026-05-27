@@ -26,3 +26,16 @@ export function validatePassword(value: string): string {
   if (!/[^A-Za-z0-9]/.test(value))  return "Must include at least 1 special character";
   return "";
 }
+
+export function digitsOnly(value: string, maxLength?: number): string {
+  const cleaned = (value ?? "").replace(/\D/g, "");
+  return typeof maxLength === "number" ? cleaned.slice(0, maxLength) : cleaned;
+}
+
+export function validatePincode(value: string): string {
+  const cleaned = (value ?? "").trim();
+  if (!cleaned) return "Pincode is required";
+  if (!/^\d+$/.test(cleaned)) return "Pincode must contain only digits";
+  if (cleaned.length < 4 || cleaned.length > 10) return "Pincode must be 4–10 digits";
+  return "";
+}

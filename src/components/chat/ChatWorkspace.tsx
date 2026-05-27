@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
+import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
 import {
   Bold,
@@ -54,6 +55,24 @@ const flattenContacts = (data?: ReturnType<typeof useChatContacts>["data"]) => [
   ...(data?.clients ?? []),
 ];
 
+// Lightweight inline markdown used by the chat toolbar — Bold/Italic/Underline.
+// We HTML-escape first, then convert the markers, so user input can't inject tags.
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const renderChatHtml = (text: string) => {
+  const escaped = escapeHtml(text);
+  return escaped
+    .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")   // **bold**
+    .replace(/__([^_\n]+?)__/g, "<u>$1</u>")                  // __underline__
+    .replace(/(^|[^*])\*(?!\*)([^*\n]+?)\*(?!\*)/g, "$1<em>$2</em>"); // *italic*
+};
+
 export function ChatWorkspace({
   portalType,
   title = "Chat",
@@ -70,7 +89,25 @@ export function ChatWorkspace({
   const [onlineActors, setOnlineActors] = React.useState<Set<string>>(new Set());
   const socketRef = React.useRef<Socket | null>(null);
   const listRef = React.useRef<HTMLDivElement | null>(null);
+  const inputRef = React.useRef<HTMLTextAreaElement | null>(null);
   const lastReadRef = React.useRef<string>("");
+
+  const wrapSelection = (before: string, after: string = before) => {
+    const ta = inputRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart ?? message.length;
+    const end   = ta.selectionEnd   ?? message.length;
+    const next  = message.substring(0, start) + before + message.substring(start, end) + after + message.substring(end);
+    setMessage(next);
+    // Restore cursor inside the wrapped markers so the user can keep typing.
+    requestAnimationFrame(() => {
+      ta.focus();
+      const caret = start === end
+        ? start + before.length
+        : end + before.length;
+      ta.setSelectionRange(caret, caret);
+    });
+  };
   const sendMessage = useSendChatMessage();
   const startDirect = useStartDirectChat();
   const markRead = useMarkChatRead();
@@ -331,7 +368,10 @@ export function ChatWorkspace({
                         <div className={`flex ${mine ? "justify-end" : "justify-start"} items-center gap-3 w-full`}>
                           {!mine && (isFirstInGroup ? <div className="w-[36px] h-[36px] rounded-full bg-muted text-foreground flex items-center justify-center text-[12px] font-black shrink-0 mt-0.5">{initials(selectedName)}</div> : <div className="w-[36px] shrink-0" />)}
                           <div className="flex flex-col gap-2 max-w-[70%]">
-                            <div className={`p-[14px_18px] rounded-[5px] text-[13.5px] leading-relaxed whitespace-pre-wrap break-words ${mine ? "bg-primary text-white rounded-tr-none" : "bg-muted text-foreground rounded-tl-none font-medium"}`}>{item.message}</div>
+                            <div
+                              className={`p-[14px_18px] rounded-[5px] text-[13.5px] leading-relaxed whitespace-pre-wrap break-words ${mine ? "bg-primary text-white rounded-tr-none" : "bg-muted text-foreground rounded-tl-none font-medium"}`}
+                              dangerouslySetInnerHTML={{ __html: renderChatHtml(item.message) }}
+                            />
                           </div>
                           {mine && (isFirstInGroup ? <div className="w-[36px] h-[36px] rounded-full bg-primary/10 text-primary flex items-center justify-center text-[12px] font-black shrink-0 mt-0.5">ME</div> : <div className="w-[36px] shrink-0" />)}
                         </div>
@@ -341,14 +381,56 @@ export function ChatWorkspace({
                   })}
                 </div>
 
-                <form onSubmit={submit} className="p-4 border-t border-border bg-card shrink-0 flex items-center gap-3">
+                <form onSubmit={submit} className="p-4 border-t border-border bg-card shrink-0 flex items-end gap-3">
                   <div className="flex items-center gap-1 mr-1">
-                    <button type="button" className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-sm hover:bg-muted" title="Bold"><Bold size={16} /></button>
-                    <button type="button" className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-sm hover:bg-muted" title="Italic"><Italic size={16} /></button>
-                    <button type="button" className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-sm hover:bg-muted" title="Underline"><Underline size={16} /></button>
+                    <button
+                      type="button"
+                      onClick={() => wrapSelection("**")}
+                      className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-sm hover:bg-muted"
+                      title="Bold (**text**)"
+                    >
+                      <Bold size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => wrapSelection("*")}
+                      className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-sm hover:bg-muted"
+                      title="Italic (*text*)"
+                    >
+                      <Italic size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => wrapSelection("__")}
+                      className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-sm hover:bg-muted"
+                      title="Underline (__text__)"
+                    >
+                      <Underline size={16} />
+                    </button>
                   </div>
-                  <input type="text" placeholder="Type your message here..." value={message} onChange={(e) => setMessage(e.target.value)} className="flex-1 bg-transparent text-[14px] text-foreground placeholder-[#a8b1c7] focus:outline-none" />
-                  <button type="button" className="text-muted-foreground hover:text-primary transition-colors p-2" aria-label="Attach file"><Paperclip size={18} /></button>
+                  <textarea
+                    ref={inputRef}
+                    placeholder="Type your message here..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        submit(e as unknown as React.FormEvent);
+                      }
+                    }}
+                    rows={1}
+                    className="flex-1 bg-transparent text-[14px] text-foreground placeholder-[#a8b1c7] focus:outline-none resize-none max-h-32 py-1.5"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toast.info("Attachments coming soon.")}
+                    className="text-muted-foreground hover:text-primary transition-colors p-2"
+                    aria-label="Attach file"
+                    title="Attach file"
+                  >
+                    <Paperclip size={18} />
+                  </button>
                   <button type="submit" disabled={!message.trim() || sendMessage.isPending} className="text-primary hover:brightness-110 transition-colors p-2 disabled:opacity-50" aria-label="Send message"><Send size={20} className="fill-current -rotate-45 -mt-1 ml-1" /></button>
                 </form>
               </>
