@@ -3,11 +3,13 @@
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
-import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
+import { resolveMediaUrl } from "@/lib/utils";
 import {
   Bold,
+  FileText,
   Italic,
+  Link,
   MessageSquare,
   MoreVertical,
   Paperclip,
@@ -17,9 +19,11 @@ import {
   UserPlus,
   Wifi,
   WifiOff,
+  X,
 } from "lucide-react";
 import {
   chatKeys,
+  type ChatAttachment,
   type ChatActorType,
   type ChatContact,
   type ChatConversation,
@@ -39,6 +43,7 @@ interface ChatWorkspaceProps {
 }
 
 const cardClass = "bg-card rounded-[5px] border border-border shadow-sm dark:shadow-none";
+const maxAttachmentBytes = 10 * 1024 * 1024;
 
 const socketUrl = () => {
   if (process.env.NEXT_PUBLIC_SOCKET_URL) return process.env.NEXT_PUBLIC_SOCKET_URL;
@@ -65,12 +70,43 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const renderChatHtml = (text: string) => {
-  const escaped = escapeHtml(text);
-  return escaped
+const sanitizeChatHtml = (text: string) =>
+  escapeHtml(text)
+    .replace(/&amp;(amp|lt|gt|quot|#39);/g, "&$1;")
+    .replace(/&lt;(?:strong|b)&gt;/gi, "<strong>")
+    .replace(/&lt;\/(?:strong|b)&gt;/gi, "</strong>")
+    .replace(/&lt;(?:em|i)&gt;/gi, "<em>")
+    .replace(/&lt;\/(?:em|i)&gt;/gi, "</em>")
+    .replace(/&lt;u&gt;/gi, "<u>")
+    .replace(/&lt;\/u&gt;/gi, "</u>")
+    .replace(/&lt;a href=&quot;(https?:\/\/[^"&]+)&quot;&gt;/gi, '<a href="$1">')
+    .replace(/&lt;\/a&gt;/gi, "</a>")
+    .replace(/&lt;br\s*\/?&gt;/gi, "<br />")
+    .replace(/&lt;div&gt;/gi, "<br />")
+    .replace(/&lt;\/div&gt;/gi, "");
+
+const renderChatHtml = (text: string) =>
+  sanitizeChatHtml(text)
+    .replace(/<a href="(https?:\/\/[^"]+)">/gi, '<a href="$1" target="_blank" rel="noopener noreferrer" class="underline">')
     .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")   // **bold**
     .replace(/__([^_\n]+?)__/g, "<u>$1</u>")                  // __underline__
     .replace(/(^|[^*])\*(?!\*)([^*\n]+?)\*(?!\*)/g, "$1<em>$2</em>"); // *italic*
+
+const getChatPlainText = (text: string) =>
+  text
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\*\*|__|\*/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .trim();
+
+const toSafeHttpUrl = (value: string) => {
+  try {
+    const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : null;
+  } catch {
+    return null;
+  }
 };
 
 export function ChatWorkspace({
@@ -85,28 +121,53 @@ export function ChatWorkspace({
   const [activeTab, setActiveTab] = React.useState<"recent" | "contacts">("recent");
   const [search, setSearch] = React.useState("");
   const [message, setMessage] = React.useState("");
+  const [pendingAttachment, setPendingAttachment] = React.useState<ChatAttachment | null>(null);
   const [connected, setConnected] = React.useState(false);
   const [onlineActors, setOnlineActors] = React.useState<Set<string>>(new Set());
   const socketRef = React.useRef<Socket | null>(null);
   const listRef = React.useRef<HTMLDivElement | null>(null);
-  const inputRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const inputRef = React.useRef<HTMLDivElement | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const lastReadRef = React.useRef<string>("");
 
-  const wrapSelection = (before: string, after: string = before) => {
-    const ta = inputRef.current;
-    if (!ta) return;
-    const start = ta.selectionStart ?? message.length;
-    const end   = ta.selectionEnd   ?? message.length;
-    const next  = message.substring(0, start) + before + message.substring(start, end) + after + message.substring(end);
-    setMessage(next);
-    // Restore cursor inside the wrapped markers so the user can keep typing.
-    requestAnimationFrame(() => {
-      ta.focus();
-      const caret = start === end
-        ? start + before.length
-        : end + before.length;
-      ta.setSelectionRange(caret, caret);
-    });
+  const applyFormat = (command: "bold" | "italic" | "underline") => {
+    inputRef.current?.focus();
+    document.execCommand(command);
+    setMessage(inputRef.current?.innerHTML || "");
+  };
+  const applyLink = () => {
+    const value = window.prompt("Enter a link URL");
+    if (!value) return;
+    const url = toSafeHttpUrl(value.trim());
+    if (!url) {
+      window.alert("Enter a valid http or https link.");
+      return;
+    }
+
+    inputRef.current?.focus();
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) {
+      document.execCommand("insertHTML", false, `<a href="${escapeHtml(url)}">${escapeHtml(url)}</a>`);
+    } else {
+      document.execCommand("createLink", false, url);
+    }
+    setMessage(inputRef.current?.innerHTML || "");
+  };
+  const pickAttachment = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!file) return;
+    if (file.size > maxAttachmentBytes) {
+      window.alert("Attachment must be 10 MB or smaller.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") return;
+      setPendingAttachment({ data_url: reader.result, name: file.name, type: file.type, size: file.size });
+    };
+    reader.readAsDataURL(file);
   };
   const sendMessage = useSendChatMessage();
   const startDirect = useStartDirectChat();
@@ -218,16 +279,20 @@ export function ChatWorkspace({
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const text = message.trim();
-    if (!selectedId || !text) return;
+    const text = sanitizeChatHtml(message).replace(/(?:<br \/>)+$/g, "").trim();
+    if (!selectedId || (!getChatPlainText(text) && !pendingAttachment)) return;
+    const attachment = pendingAttachment;
+    const messageText = text || attachment?.name || "Attachment";
     setMessage("");
+    setPendingAttachment(null);
+    if (inputRef.current) inputRef.current.innerHTML = "";
     const tempId = -Date.now();
     qc.setQueryData<ChatMessage[]>(chatKeys.messages(selectedId), (old = []) => [
       ...old,
-      { id: tempId, conversation_id: selectedId, sender_type: portalType, sender_id: 0, message: text, message_type: "text" as const, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { id: tempId, conversation_id: selectedId, sender_type: portalType, sender_id: 0, message: messageText, message_type: "text" as const, metadata: attachment ? { attachment } : null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
     ]);
     try {
-      await sendMessage.mutateAsync({ conversation_id: selectedId, message: text });
+      await sendMessage.mutateAsync({ conversation_id: selectedId, message: text, attachment });
     } catch {
       qc.setQueryData<ChatMessage[]>(chatKeys.messages(selectedId), (old = []) => old.filter((m) => m.id !== tempId));
     }
@@ -314,7 +379,7 @@ export function ChatWorkspace({
                             <button className="h-6 w-6 mt-1 text-muted-foreground hover:text-primary flex items-center justify-center" aria-label="Chat actions"><MoreVertical className="h-4 w-4" /></button>
                           </div>
                         </div>
-                        <p className="text-[13px] text-muted-foreground leading-tight line-clamp-2">{conversation.lastMessage?.message || "No messages yet"}</p>
+                        <p className="text-[13px] text-muted-foreground leading-tight line-clamp-2">{conversation.lastMessage?.message ? getChatPlainText(conversation.lastMessage.message) : "No messages yet"}</p>
                       </div>
                     </div>
                   );
@@ -361,6 +426,8 @@ export function ChatWorkspace({
                     <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">No messages yet. Start the conversation!</div>
                   ) : messages.map((item, index) => {
                     const mine = item.sender_type === portalType;
+                    const attachment = item.metadata?.attachment;
+                    const attachmentUrl = resolveMediaUrl(attachment?.url || attachment?.data_url);
                     const previous = messages[index - 1];
                     const isFirstInGroup = !previous || previous.sender_type !== item.sender_type || previous.sender_id !== item.sender_id;
                     return (
@@ -372,6 +439,15 @@ export function ChatWorkspace({
                               className={`p-[14px_18px] rounded-[5px] text-[13.5px] leading-relaxed whitespace-pre-wrap break-words ${mine ? "bg-primary text-white rounded-tr-none" : "bg-muted text-foreground rounded-tl-none font-medium"}`}
                               dangerouslySetInnerHTML={{ __html: renderChatHtml(item.message) }}
                             />
+                            {attachment && attachmentUrl && (
+                              <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" download={attachment.name} className={`block rounded-sm border p-2 text-xs underline ${mine ? "border-white/30 text-white" : "border-border text-primary"}`}>
+                                {attachment.type?.startsWith("image/") ? (
+                                  <img src={attachmentUrl} alt={attachment.name} className="max-h-48 max-w-full rounded-sm object-contain" />
+                                ) : (
+                                  <span className="flex items-center gap-2"><FileText size={16} />{attachment.name}</span>
+                                )}
+                              </a>
+                            )}
                           </div>
                           {mine && (isFirstInGroup ? <div className="w-[36px] h-[36px] rounded-full bg-primary/10 text-primary flex items-center justify-center text-[12px] font-black shrink-0 mt-0.5">ME</div> : <div className="w-[36px] shrink-0" />)}
                         </div>
@@ -381,57 +457,67 @@ export function ChatWorkspace({
                   })}
                 </div>
 
-                <form onSubmit={submit} className="p-4 border-t border-border bg-card shrink-0 flex items-end gap-3">
+                <form onSubmit={submit} className="p-4 border-t border-border bg-card shrink-0 flex flex-wrap items-end gap-3">
+                  {pendingAttachment && (
+                    <div className="basis-full flex items-center justify-between gap-3 rounded-sm border border-border bg-muted/40 px-3 py-2 text-xs">
+                      <span className="truncate">{pendingAttachment.name}</span>
+                      <button type="button" onClick={() => setPendingAttachment(null)} className="text-muted-foreground hover:text-destructive" aria-label="Remove attachment"><X size={15} /></button>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1 mr-1">
                     <button
                       type="button"
-                      onClick={() => wrapSelection("**")}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => applyFormat("bold")}
                       className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-sm hover:bg-muted"
-                      title="Bold (**text**)"
+                      title="Bold"
                     >
                       <Bold size={16} />
                     </button>
                     <button
                       type="button"
-                      onClick={() => wrapSelection("*")}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => applyFormat("italic")}
                       className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-sm hover:bg-muted"
-                      title="Italic (*text*)"
+                      title="Italic"
                     >
                       <Italic size={16} />
                     </button>
                     <button
                       type="button"
-                      onClick={() => wrapSelection("__")}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => applyFormat("underline")}
                       className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-sm hover:bg-muted"
-                      title="Underline (__text__)"
+                      title="Underline"
                     >
                       <Underline size={16} />
                     </button>
+                    <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={applyLink} className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-sm hover:bg-muted" title="Add link"><Link size={16} /></button>
                   </div>
-                  <textarea
+                  <div
                     ref={inputRef}
-                    placeholder="Type your message here..."
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
+                    contentEditable
+                    suppressContentEditableWarning
+                    role="textbox"
+                    aria-label="Message"
+                    data-placeholder="Type your message here..."
+                    onInput={(event) => setMessage(event.currentTarget.innerHTML)}
+                    onPaste={(event) => {
+                      event.preventDefault();
+                      document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+                      setMessage(event.currentTarget.innerHTML);
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
                         submit(e as unknown as React.FormEvent);
                       }
                     }}
-                    rows={1}
-                    className="flex-1 bg-transparent text-[14px] text-foreground placeholder-[#a8b1c7] focus:outline-none resize-none max-h-32 py-1.5"
+                    className="flex-1 max-h-32 min-h-7 overflow-y-auto bg-transparent py-1.5 text-[14px] text-foreground focus:outline-none empty:before:pointer-events-none empty:before:text-[#a8b1c7] empty:before:content-[attr(data-placeholder)]"
                   />
-                  <button
-                    type="button"
-                    onClick={() => toast.info("Attachments coming soon.")}
-                    className="text-muted-foreground hover:text-primary transition-colors p-2"
-                    aria-label="Attach file"
-                    title="Attach file"
-                  >
-                    <Paperclip size={18} />
-                  </button>
-                  <button type="submit" disabled={!message.trim() || sendMessage.isPending} className="text-primary hover:brightness-110 transition-colors p-2 disabled:opacity-50" aria-label="Send message"><Send size={20} className="fill-current -rotate-45 -mt-1 ml-1" /></button>
+                  <input ref={fileInputRef} type="file" className="hidden" onChange={pickAttachment} />
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="text-muted-foreground hover:text-primary transition-colors p-2" aria-label="Attach file" title="Attach file"><Paperclip size={18} /></button>
+                  <button type="submit" disabled={(!getChatPlainText(message) && !pendingAttachment) || sendMessage.isPending} className="text-primary hover:brightness-110 transition-colors p-2 disabled:opacity-50" aria-label="Send message"><Send size={20} className="fill-current -rotate-45 -mt-1 ml-1" /></button>
                 </form>
               </>
             ) : (

@@ -27,6 +27,7 @@ function LocationSelect({
   icon: Icon,
   disabled = false,
   isLoading = false,
+  error,
 }: {
   value: string;
   onValueChange: (name: string) => void;
@@ -35,6 +36,7 @@ function LocationSelect({
   icon: React.ElementType;
   disabled?: boolean;
   isLoading?: boolean;
+  error?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -66,8 +68,9 @@ function LocationSelect({
           onBlur={() => setTimeout(() => setOpen(false), 200)}
           readOnly={disabled}
           placeholder={isLoading ? "Loading…" : placeholder}
-          className={`h-10 w-full pl-9 pr-8 border border-input rounded-sm text-sm bg-background outline-none transition-all
+          className={`h-10 w-full pl-9 pr-8 border rounded-sm text-sm bg-background outline-none transition-all
             focus:ring-2 focus:ring-ring focus:ring-offset-0
+            ${error ? "border-rose-500" : "border-input"}
             ${disabled ? "opacity-50 cursor-default bg-muted/30" : ""}
             ${!disabled && !open && value ? "font-medium" : ""}`}
         />
@@ -191,6 +194,7 @@ export function LocationSelects({
           icon={Flag}
           disabled={disabled}
           isLoading={loadingCountries}
+          error={errors.country}
         />
       </FormGroup>
 
@@ -203,6 +207,7 @@ export function LocationSelects({
           icon={Globe}
           disabled={disabled || !countryId}
           isLoading={loadingStates}
+          error={errors.state}
         />
       </FormGroup>
 
@@ -215,6 +220,7 @@ export function LocationSelects({
           icon={Building}
           disabled={disabled || !stateId}
           isLoading={loadingDistricts}
+          error={errors.district}
         />
       </FormGroup>
 
@@ -227,6 +233,7 @@ export function LocationSelects({
           icon={Building}
           disabled={disabled || !districtId}
           isLoading={loadingCities}
+          error={errors.city}
         />
       </FormGroup>
     </div>

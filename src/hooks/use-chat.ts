@@ -21,6 +21,14 @@ export interface ChatParticipant {
   avatar: string | null;
 }
 
+export interface ChatAttachment {
+  url?: string | null;
+  data_url?: string;
+  name: string;
+  type: string;
+  size: number;
+}
+
 export interface ChatMessage {
   id: number;
   conversation_id: number;
@@ -28,6 +36,7 @@ export interface ChatMessage {
   sender_id: number;
   message: string;
   message_type: 'text' | 'system';
+  metadata?: { attachment?: ChatAttachment | null } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -88,7 +97,7 @@ export const useStartDirectChat = () => {
 export const useSendChatMessage = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { conversation_id: number; message: string }) =>
+    mutationFn: async (payload: { conversation_id: number; message: string; attachment?: ChatAttachment | null }) =>
       (await apiClient.post('/chat/messages', payload)).data.data as ChatMessage,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: chatKeys.conversations });
